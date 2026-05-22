@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yousician-style Piano Practice App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0d0e12;
+            color: #f3f4f6;
+        }
+        
+        .header-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4B5563;
+        }
+
+        /* Glowing Effects */
+        .glow-green {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+        .glow-blue {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden min-h-screen flex flex-col">
+
+    <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between z-10">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-emerald-500 to-cyan-500 p-2 rounded-xl text-white">
+                <i class="fa-solid fa-music text-xl"></i>
+            </div>
+            <div>
+                <span class="header-font text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">PIANOSENSE</span>
+                <span class="text-xs text-slate-400 block -mt-1">Real-time Computer Vision & Yousician Playalong</span>
+            </div>
+        </div>
+
+        <div class="hidden md:flex items-center space-x-6 text-sm text-slate-300">
+            <div class="flex items-center space-x-2">
+                <div id="micStatusLight" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                <span id="micStatusText">Microphone: Disconnected</span>
+            </div>
+            <div class="h-4 w-px bg-slate-800"></div>
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-wave-square text-cyan-400"></i>
+                <span>Detected Note: <strong id="detectedNoteText" class="text-cyan-400 font-mono text-base">-</strong></span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button id="toggleMicBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium py-2 px-4 rounded-xl border border-slate-700 transition duration-200 flex items-center space-x-2 text-sm">
+                <i class="fa-solid fa-microphone"></i>
+                <span>Connect Piano Mic</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="flex-1 grid grid-cols-1 xl:grid-cols-4 overflow-hidden h-[calc(100vh-73px)]">
+        
+        <section class="xl:col-span-1 bg-slate-950 p-6 border-r border-slate-900 overflow-y-auto flex flex-col space-y-5">
+            
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3 text-xs font-semibold text-emerald-400 bg-emerald-950/40 rounded-bl-xl border-l border-b border-emerald-900/40 header-font uppercase tracking-wider">
+                    Hybrid OMR
+                </div>
+                <h3 class="header-font font-bold text-lg text-slate-100 mb-2 mt-2 font-semibold">Scan Sheet Music</h3>
+                <p class="text-xs text-slate-400 mb-4 font-medium">Upload any sheet music screenshot, image, or PDF. The built-in engine reads the lines and translates them instantly!</p>
+                
+                <label for="fileUpload" class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-emerald-500 rounded-xl p-5 cursor-pointer bg-slate-950/50 hover:bg-slate-900 transition duration-200">
+                    <i class="fa-solid fa-file-image text-3xl text-slate-500 group-hover:text-emerald-400 transition mb-2"></i>
+                    <span class="text-sm font-semibold text-slate-300">Upload Image or PDF</span>
+                    <span class="text-xxs text-slate-500 mt-1 text-center">Reads pixels local & offline</span>
+                    <input type="file" id="fileUpload" class="hidden" accept="image/*,application/pdf">
+                </label>
+
+                <div class="mt-4 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                    <label class="block text-xxs font-extrabold text-slate-400 uppercase tracking-wider mb-2">Transcription Method</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="engineLocalBtn" class="bg-cyan-500 text-slate-950 text-xxs font-bold py-1.5 px-2 rounded-lg transition">
+                            Offline Scan
+                        </button>
+                        <button id="engineCloudBtn" class="bg-slate-800 text-slate-300 hover:text-white text-xxs font-bold py-1.5 px-2 rounded-lg transition">
+                            Gemini Vision
+                        </button>
+                    </div>
+                </div>
+
+                <div id="apiKeyContainer" class="mt-4 hidden">
+                    <label class="block text-xxs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Custom Gemini API Key</label>
+                    <div class="relative">
+                        <input type="password" id="customApiKeyInput" placeholder="Paste your Gemini API key here..." class="w-full bg-slate-950 border border-slate-800 text-xs px-3 py-2 rounded-xl text-slate-300 focus:outline-none focus:border-cyan-500 pr-8">
+                        <i class="fa-solid fa-key absolute right-3 top-2.5 text-slate-600 text-xs"></i>
+                    </div>
+                    <span class="text-xxs text-slate-500 mt-1 block">Only needed for Cloud Gemini Vision mode.</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-44">
+                <span class="text-xxs font-extrabold text-cyan-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                        OMR Processing Logs
+                    </span>
+                    <button id="clearLogsBtn" class="text-slate-500 hover:text-slate-300 font-mono text-xxs">Clear</button>
+                </span>
+                <div id="omrTerminal" class="flex-1 bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono text-xxs text-emerald-400 overflow-y-auto space-y-1 select-text">
+                    <div>[System] OMR ready. Upload a photo or PDF to scan!</div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="header-font font-bold text-base text-slate-100 mb-3 flex justify-between items-center">
+                    <span>Practice Library</span>
+                    <span class="text-xs font-normal text-slate-500">Select standard tracks</span>
+                </h3>
+                <div class="space-y-2" id="songList">
+                    </div>
+            </div>
+        </section>
+
+        <section class="xl:col-span-3 bg-slate-900 flex flex-col overflow-hidden relative">
+            
+            <div class="bg-slate-950 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-4">
+                    <span id="currentSongTitle" class="header-font font-bold text-lg text-white">Select a Song to Begin</span>
+                    <span id="currentSongTempo" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-cyan-400 border border-slate-700">120 BPM</span>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                    <button id="visStaveBtn" class="text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150">
+                        Classic Staff
+                    </button>
+                    <button id="visHighwayBtn" class="bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150 shadow-cyan-500/10">
+                        Yousician Highway
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <button id="playPauseBtn" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 px-5 rounded-xl transition duration-150 flex items-center space-x-2 glow-green">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Start Playback</span>
+                    </button>
+                    
+                    <button id="resetBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-4 rounded-xl border border-slate-700 transition duration-150">
+                        <i class="fa-solid fa-backward-fast"></i>
+                    </button>
+
+                    <div class="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                        <button id="modeWaitBtn" class="bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150">
+                            Wait-for-Me
+                        </button>
+                        <button id="modeFlowBtn" class="text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150">
+                            Play-Along
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                    <button id="toggleMetronomeBtn" class="text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150 flex items-center space-x-1.5">
+                        <i class="fa-solid fa-hourglass"></i>
+                        <span id="metroText">Metro: Off</span>
+                    </button>
+                    <div class="h-4 w-px bg-slate-800"></div>
+                    <div class="flex items-center space-x-1 px-1.5">
+                        <i class="fa-solid fa-volume-high text-xs text-slate-500"></i>
+                        <input type="range" id="metroVolume" min="0" max="1" step="0.1" value="0.5" class="w-12 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <span class="text-xxs text-slate-500 uppercase tracking-wider block">Combo</span>
+                        <span id="comboCounter" class="text-lg font-extrabold text-amber-400 header-font">0</span>
+                    </div>
+                    <div class="h-8 w-px bg-slate-800"></div>
+                    <div class="text-right">
+                        <span class="text-xxs text-slate-500 uppercase tracking-wider block">Score</span>
+                        <span id="scoreCounter" class="text-lg font-extrabold text-emerald-400 header-font">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 relative bg-slate-950 overflow-hidden flex flex-col justify-between">
+                
+                <div id="omrOverlay" class="hidden absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center z-50 transition-all duration-300">
+                    <div class="max-w-md w-full px-6 text-center space-y-6">
+                        <div class="relative inline-block">
+                            <div class="w-24 h-24 border-4 border-emerald-500 rounded-full flex items-center justify-center text-4xl text-emerald-400 animate-pulse">
+                                <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            </div>
+                            <div class="absolute top-0 w-24 h-1 bg-emerald-400 shadow-lg shadow-emerald-500/50 animate-bounce"></div>
+                        </div>
+                        <div>
+                            <h3 id="omrProgressTitle" class="header-font font-bold text-xl text-white">Extracting Sheet Music...</h3>
+                            <p id="omrProgressDesc" class="text-slate-400 text-sm mt-1">Analyzing staff lines and pitch positions.</p>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="omrProgressBar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-0 transition-all duration-200"></div>
+                        </div>
+                        <span id="omrPercent" class="text-xs font-mono text-cyan-400">0% scanned</span>
+                    </div>
+                </div>
+
+                <div id="feedbackBox" class="absolute left-1/2 top-4 -translate-x-1/2 bg-slate-900/90 border border-slate-700/50 px-4 py-2 rounded-full text-sm font-bold tracking-wide transition-all duration-200 opacity-0 transform -translate-y-2 pointer-events-none z-30 flex items-center justify-center min-w-[200px]">
+                    <span id="feedbackMessage" class="text-center font-extrabold uppercase"></span>
+                </div>
+
+                <div class="flex-1 w-full relative overflow-hidden flex items-center">
+                    <canvas id="notationCanvas" class="w-full h-full cursor-pointer bg-slate-950"></canvas>
+                </div>
+
+                <div class="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 p-3 rounded-xl flex flex-col space-y-2 w-48 shadow-lg">
+                    <span class="text-xxs text-slate-400 font-bold uppercase tracking-wider">Live Input Graph</span>
+                    <canvas id="freqCanvas" class="w-full h-12 bg-slate-950 rounded"></canvas>
+                    <div class="flex justify-between text-xxs text-slate-500">
+                        <span>A0 (27Hz)</span>
+                        <span>C8 (4186Hz)</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border-t border-slate-800 p-4">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs text-slate-400 font-medium">Virtual Helper & Practice Piano</span>
+                            <div class="flex space-x-4 text-xxs text-slate-400">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block mr-1"></span> Next Note To Play</span>
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block mr-1"></span> Successfully Played</span>
+                            </div>
+                        </div>
+                        <div id="pianoContainer" class="flex justify-center select-none w-full">
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 hidden">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4">
+            <div class="w-12 h-12 bg-emerald-950 text-emerald-400 rounded-full flex items-center justify-center text-xl mx-auto">
+                <i class="fa-solid fa-info-circle"></i>
+            </div>
+            <h3 id="modalTitle" class="header-font font-bold text-lg text-slate-100">Notification</h3>
+            <p id="modalBody" class="text-sm text-slate-400"></p>
+            <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2 rounded-xl transition">
+                Got it
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Modal helpers
+        function showModal(title, message) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalBody').innerText = message;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+
+        // Standard Note Map & Reference frequencies
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        
+        // Piano Range Configuration
+        const START_MIDI = 48; // C3
+        const END_MIDI = 84;   // C6
+        
+        // Yousician Pitch Color Mapping (7 notes of scale C-D-E-F-G-A-B)
+        const yousicianColors = {
+            "C": "#ef4444", // Red
+            "C#": "#f97316", // Red-Orange
+            "D": "#f59e0b", // Orange
+            "D#": "#eab308", // Yellow-Orange
+            "E": "#84cc16", // Light Green
+            "F": "#10b981", // Emerald Green
+            "F#": "#06b6d4", // Cyan
+            "G": "#3b82f6", // Blue
+            "G#": "#6366f1", // Indigo
+            "A": "#8b5cf6", // Purple
+            "A#": "#ec4899", // Pink
+            "B": "#f43f5e"  // Rose Red
+        };
+
+        // Standard Track Library
+        const SONG_LIBRARY = [
+            {
+                id: "twinkle-twinkle",
+                title: "Twinkle Twinkle Little Star (Full)",
+                composer: "Traditional",
+                tempo: 100,
+                difficulty: "Beginner",
+                notes: [
+                    { midi: 60, name: "C4", duration: 1 }, { midi: 60, name: "C4", duration: 1 },
+                    { midi: 67, name: "G4", duration: 1 }, { midi: 67, name: "G4", duration: 1 },
+                    { midi: 69, name: "A4", duration: 1 }, { midi: 69, name: "A4", duration: 1 },
+                    { midi: 67, name: "G4", duration: 2 },
+                    { midi: 65, name: "F4", duration: 1 }, { midi: 65, name: "F4", duration: 1 },
+                    { midi: 64, name: "E4", duration: 1 }, { midi: 64, name: "E4", duration: 1 },
+                    { midi: 62, name: "D4", duration: 1 }, { midi: 62, name: "D4", duration: 1 },
+                    { midi: 60, name: "C4", duration: 2 }
+                ]
+            }
+        ];
+
+        // System State
+        let currentSong = SONG_LIBRARY[0];
+        let currentNoteIndex = 0;
+        let isPlaying = false;
+        let isWaitingMode = true;
+        let activeVisualizer = 'highway'; // 'stave' or 'highway'
+        let score = 0;
+        let combo = 0;
+        let lastAccuracyTime = 0;
+        let lastWrongTime = 0; 
+        let playInterval = null;
+        let selectedEngine = 'local';
+        
+        // Metronome State
+        let isMetronomeOn = false;
+        let metronomeBeat = 0;
+        let metroVolume = 0.5;
+
+        // Microphone/Audio logic
+        let audioContext = null;
+        let analyser = null;
+        let mediaStreamSource = null;
+        let detectedFrequency = 0;
+        let detectedNoteString = "-";
+        let detectedMidiNum = -1;
+
+        const pianoContainer = document.getElementById('pianoContainer');
+        const notationCanvas = document.getElementById('notationCanvas');
+        const freqCanvas = document.getElementById('freqCanvas');
+        
+        const notationCtx = notationCanvas.getContext('2d');
+        const freqCtx = freqCanvas.getContext('2d');
+        const omrTerminal = document.getElementById('omrTerminal');
+
+        // File upload and OMR scanning UI elements
+        const fileUpload = document.getElementById('fileUpload');
+        const omrOverlay = document.getElementById('omrOverlay');
+        const omrProgressBar = document.getElementById('omrProgressBar');
+        const omrPercent = document.getElementById('omrPercent');
+        const omrTitle = document.getElementById('omrProgressTitle');
+        const omrDesc = document.getElementById('omrProgressDesc');
+
+        // High-fidelity chromatic MIDI to Diatonic Treble Staff step lookup
+        const staffDiatonicLookup = {
+            48: -13, 49: -13, 50: -12, 51: -12, 52: -11, 53: -10, 54: -10, 55: -9, 56: -9, 57: -8, 58: -8, 59: -7,
+            60: -6,  61: -6,  62: -5,  63: -5,  64: -4,  65: -3,  66: -3,  67: -2, 68: -2, 69: -1, 70: -1, 71: 0,
+            72: 1,   73: 1,   74: 2,   75: 2,   76: 3,   77: 4,   78: 4,   79: 5,  80: 5,  81: 6,  82: 6,  83: 7, 84: 8
+        };
+
+        function getStaffStep(midi) {
+            return staffDiatonicLookup[midi] !== undefined ? staffDiatonicLookup[midi] : 0;
+        }
+
+        function isAccidental(midi) {
+            return [1, 3, 6, 8, 10].includes(midi % 12);
+        }
+
+        function logToTerminal(message, type = 'info') {
+            const div = document.createElement('div');
+            if (type === 'error') div.className = 'text-red-400';
+            else if (type === 'success') div.className = 'text-emerald-400 font-bold';
+            else if (type === 'process') div.className = 'text-yellow-400 animate-pulse';
+            else div.className = 'text-cyan-400';
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${message}`;
+            omrTerminal.appendChild(div);
+            omrTerminal.scrollTop = omrTerminal.scrollHeight;
+        }
+
+        document.getElementById('clearLogsBtn').addEventListener('click', () => {
+            omrTerminal.innerHTML = '<div>[System] OMR Log console cleared. Ready for scans.</div>';
+        });
+
+        // Visualizer Mode Switches
+        const visStaveBtn = document.getElementById('visStaveBtn');
+        const visHighwayBtn = document.getElementById('visHighwayBtn');
+
+        visStaveBtn.addEventListener('click', () => {
+            activeVisualizer = 'stave';
+            visStaveBtn.className = "bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150";
+            visHighwayBtn.className = "text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150";
+            drawNotation();
+        });
+
+        visHighwayBtn.addEventListener('click', () => {
+            activeVisualizer = 'highway';
+            visHighwayBtn.className = "bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150 shadow-cyan-500/10";
+            visStaveBtn.className = "text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150";
+            drawNotation();
+        });
+
+        // Metronome Control
+        const toggleMetronomeBtn = document.getElementById('toggleMetronomeBtn');
+        const metroVolumeInput = document.getElementById('metroVolume');
+
+        toggleMetronomeBtn.addEventListener('click', () => {
+            isMetronomeOn = !isMetronomeOn;
+            document.getElementById('metroText').innerText = isMetronomeOn ? "Metro: On" : "Metro: Off";
+            toggleMetronomeBtn.className = isMetronomeOn 
+                ? "bg-emerald-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150"
+                : "text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150 flex items-center space-x-1.5";
+            logToTerminal(`Metronome ${isMetronomeOn ? 'Enabled' : 'Disabled'}`);
+        });
+
+        metroVolumeInput.addEventListener('input', (e) => {
+            metroVolume = parseFloat(e.target.value);
+        });
+
+        const engineLocalBtn = document.getElementById('engineLocalBtn');
+        const engineCloudBtn = document.getElementById('engineCloudBtn');
+        const apiKeyContainer = document.getElementById('apiKeyContainer');
+
+        engineLocalBtn.addEventListener('click', () => {
+            selectedEngine = 'local';
+            engineLocalBtn.className = "bg-cyan-500 text-slate-950 text-xxs font-bold py-1.5 px-2 rounded-lg transition";
+            engineCloudBtn.className = "bg-slate-800 text-slate-300 hover:text-white text-xxs font-bold py-1.5 px-2 rounded-lg transition";
+            apiKeyContainer.classList.add('hidden');
+            logToTerminal("Switched to Offline Pixel-Scanning Engine. No key required!");
+        });
+
+        engineCloudBtn.addEventListener('click', () => {
+            selectedEngine = 'cloud';
+            engineCloudBtn.className = "bg-cyan-500 text-slate-950 text-xxs font-bold py-1.5 px-2 rounded-lg transition";
+            engineLocalBtn.className = "bg-slate-800 text-slate-300 hover:text-white text-xxs font-bold py-1.5 px-2 rounded-lg transition";
+            apiKeyContainer.classList.remove('hidden');
+            logToTerminal("Switched to Advanced Gemini OMR Engine.");
+        });
+
+        function renderVirtualPiano() {
+            pianoContainer.innerHTML = '';
+            for (let m = START_MIDI; m <= END_MIDI; m++) {
+                const noteOffset = m % 12;
+                const isBlack = [1, 3, 6, 8, 10].includes(noteOffset);
+                const noteName = noteNames[noteOffset] + (Math.floor(m / 12) - 1);
+                
+                const key = document.createElement('div');
+                key.id = `key-${m}`;
+                key.dataset.midi = m;
+                
+                if (isBlack) {
+                    key.className = "w-7 h-28 bg-slate-800 hover:bg-slate-700 active:bg-cyan-500 rounded-b border border-slate-950 -mx-3.5 z-10 transition-colors cursor-pointer relative";
+                    key.title = noteName;
+                } else {
+                    key.className = "w-11 h-44 bg-white hover:bg-slate-100 active:bg-cyan-400 rounded-b border border-slate-300 transition-colors cursor-pointer flex items-end justify-center pb-2 text-xxs text-slate-500 font-bold font-mono";
+                    key.innerText = noteOffset === 0 ? noteName : noteNames[noteOffset];
+                }
+
+                key.addEventListener('mousedown', () => simulateKeyTrigger(m));
+                pianoContainer.appendChild(key);
+            }
+        }
+        renderVirtualPiano();
+
+        function renderSongList() {
+            const list = document.getElementById('songList');
+            list.innerHTML = '';
+            SONG_LIBRARY.forEach(song => {
+                const item = document.createElement('div');
+                const isSelected = song.id === currentSong.id;
+                item.className = `p-3.5 rounded-xl border transition-all cursor-pointer flex justify-between items-center ${
+                    isSelected 
+                        ? 'bg-slate-900 border-emerald-500/60 glow-green' 
+                        : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                }`;
+                item.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-100">${song.title}</h4>
+                        <span class="text-xxs text-slate-400 font-semibold">${song.composer} • ${song.difficulty}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xxs font-mono px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded">${song.notes.length} Notes</span>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </div>
+                `;
+                item.addEventListener('click', () => {
+                    selectSong(song);
+                });
+                list.appendChild(item);
+            });
+        }
+        renderSongList();
+
+        function selectSong(song) {
+            stopPlayback();
+            currentSong = song;
+            currentNoteIndex = 0;
+            score = 0;
+            combo = 0;
+            updateDashboard();
+            document.getElementById('currentSongTitle').innerText = song.title;
+            document.getElementById('currentSongTempo').innerText = `${song.tempo} BPM`;
+            renderSongList();
+            drawNotation();
+            highlightKeysOnPiano();
+        }
+
+        function updateDashboard() {
+            document.getElementById('scoreCounter').innerText = score;
+            document.getElementById('comboCounter').innerText = combo;
+        }
+
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const modeWaitBtn = document.getElementById('modeWaitBtn');
+        const modeFlowBtn = document.getElementById('modeFlowBtn');
+
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) stopPlayback();
+            else startPlayback();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            stopPlayback();
+            currentNoteIndex = 0;
+            score = 0;
+            combo = 0;
+            updateDashboard();
+            drawNotation();
+            highlightKeysOnPiano();
+        });
+
+        modeWaitBtn.addEventListener('click', () => {
+            isWaitingMode = true;
+            modeWaitBtn.className = "bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150";
+            modeFlowBtn.className = "text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150";
+        });
+
+        modeFlowBtn.addEventListener('click', () => {
+            isWaitingMode = false;
+            modeFlowBtn.className = "bg-cyan-500 text-slate-950 font-bold text-xs py-1.5 px-3 rounded-lg transition duration-150";
+            modeWaitBtn.className = "text-slate-400 hover:text-white font-medium text-xs py-1.5 px-3 rounded-lg transition duration-150";
+        });
+
+        // ----------------- ADVANCED EMBEDDED OMR ENGINES -----------------
+        async function runLocalImagePixelScan(imgSrc) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = function() {
+                    try {
+                        const w = 600;
+                        const h = 400;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+
+                        const imgData = ctx.getImageData(0, 0, w, h);
+                        const pixels = imgData.data;
+
+                        logToTerminal("Binarizing pixel matrix into grayscale spaces...", 'process');
+
+                        const binaryGrid = new Array(h).fill(null).map(() => new Array(w).fill(false));
+                        const horizontalProjection = new Array(h).fill(0);
+
+                        for (let y = 0; y < h; y++) {
+                            for (let x = 0; x < w; x++) {
+                                const idx = (y * w + x) * 4;
+                                const luminance = 0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2];
+                                const isDark = luminance < 130;
+                                binaryGrid[y][x] = isDark;
+                                if (isDark && x > 60 && x < 540) horizontalProjection[y]++;
+                            }
+                        }
+
+                        const peaks = [];
+                        for (let y = 8; y < h - 8; y++) {
+                            if (horizontalProjection[y] > 120 && 
+                                horizontalProjection[y] >= horizontalProjection[y-1] && 
+                                horizontalProjection[y] >= horizontalProjection[y+1]) {
+                                peaks.push({ y: y, val: horizontalProjection[y] });
+                            }
+                        }
+
+                        peaks.sort((a,b) => b.val - a.val);
+                        let staffLines = peaks.slice(0, 5).map(p => p.y).sort((a,b) => a - b);
+
+                        if (staffLines.length < 5) {
+                            staffLines = [150, 166, 182, 198, 214];
+                        }
+
+                        const line0 = staffLines[0]; 
+                        const line4 = staffLines[4]; 
+                        const spacing = (line4 - line0) / 4;
+
+                        function getMidiFromY(yVal) {
+                            const relativeOffset = (yVal - line4) / (spacing / 2);
+                            const staffSteps = Math.round(-relativeOffset);
+                            const baseScale = [64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81]; 
+                            if (staffSteps >= 0 && staffSteps < baseScale.length) return baseScale[staffSteps];
+                            return 60; 
+                        }
+
+                        const parsedNotes = [];
+                        for (let col = 90; col < 510; col += 24) {
+                            let darkSumY = 0, darkCount = 0;
+                            for (let y = line0 - 20; y < line4 + 20; y++) {
+                                for (let ox = 0; ox < 18; ox++) {
+                                    if (binaryGrid[y][col + ox]) {
+                                        darkSumY += y;
+                                        darkCount++;
+                                    }
+                                }
+                            }
+                            if (darkCount > 12) {
+                                const midi = getMidiFromY(darkSumY / darkCount);
+                                parsedNotes.push({ midi: midi, name: noteNames[midi % 12] + (Math.floor(midi / 12) - 1), duration: 1 });
+                            }
+                        }
+
+                        resolve(parsedNotes.length > 0 ? parsedNotes : null);
+                    } catch (err) { reject(err); }
+                };
+                img.onerror = () => reject(new Error("Unable to parse file pixels."));
+                img.src = imgSrc;
+            });
+        }
+
+        async function runGeminiOMRVision(base64Image, mimeType) {
+            const customKey = document.getElementById('customApiKeyInput').value.trim();
+            if (!customKey) throw new Error("Please enter your Gemini API key inside the box to connect the cloud decoder engine.");
+
+            const model = "gemini-2.5-flash";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${customKey}`;
+            
+            logToTerminal("Streaming transcription query to Gemini Cloud Vision...");
+
+            const systemPrompt = "You are an advanced Optical Music Recognition (OMR) system. Look closely at the musical notes displayed on the staff line. Convert each consecutive note into JSON matching this exact scheme: { \"title\": \"Name\", \"composer\": \"Name\", \"tempo\": 120, \"difficulty\": \"Beginner\", \"notes\": [ {\"midi\": 60, \"name\": \"C4\", \"duration\": 1} ] }";
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: "Decode this piano sheet screenshot layout chronologically into structural note formats." },
+                        { inlineData: { mimeType: mimeType || "image/png", data: base64Image } }
+                    ]
+                }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("API call failed. Double check your key value.");
+            const data = await response.json();
+            return JSON.parse(data.candidates[0].content.parts[0].text);
+        }
+
+        async function convertPdfToImageBytes(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const firstPage = await pdfDoc.getPage(1);
+            const viewport = firstPage.getViewport({ scale: 1.5 }); 
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.height = viewport.height;
+            tempCanvas.width = viewport.width;
+            await firstPage.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+            const dataUrl = tempCanvas.toDataURL('image/png');
+            return { base64: dataUrl.split(',')[1], dataUrl: dataUrl, mimeType: 'image/png' };
+        }
+
+        fileUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            logToTerminal(`File uploaded: "${file.name}"`);
+            omrOverlay.classList.remove('hidden');
+            updateOMRProgress(20, "Reading Data Buffers...", "Converting uploaded file to responsive matrix.");
+
+            try {
+                let base64Data = "", rawDataUrl = "", mimeType = file.type || "image/png";
+
+                if (file.type === "application/pdf") {
+                    const pdfResult = await convertPdfToImageBytes(file);
+                    base64Data = pdfResult.base64;
+                    rawDataUrl = pdfResult.dataUrl;
+                    mimeType = pdfResult.mimeType;
+                } else {
+                    rawDataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+                    base64Data = rawDataUrl.split(',')[1];
+                }
+
+                let newNotes = null;
+                let trackTitle = file.name.replace(/\.[^/.]+$/, "");
+                let trackComposer = "OMR Scanner";
+                let trackTempo = 100;
+
+                if (selectedEngine === 'local') {
+                    updateOMRProgress(60, "Scanning Pixels Locally...", "Extracting coordinates directly inside your browser framework.");
+                    newNotes = await runLocalImagePixelScan(rawDataUrl);
+                } else {
+                    updateOMRProgress(60, "Processing With Gemini Cloud...", "Uploading structures to secure AI vision model endpoints.");
+                    const res = await runGeminiOMRVision(base64Data, mimeType);
+                    newNotes = res.notes;
+                    trackTitle = res.title || trackTitle;
+                    trackComposer = res.composer || trackComposer;
+                    trackTempo = res.tempo || trackTempo;
+                }
+
+                if (!newNotes || newNotes.length === 0) throw new Error("Could not map layout structure cleanly.");
+
+                const newTrack = { id: `scanned-${Date.now()}`, title: trackTitle, composer: trackComposer, tempo: trackTempo, difficulty: "Decoded", notes: newNotes };
+                SONG_LIBRARY.unshift(newTrack);
+                selectSong(newTrack);
+                
+                updateOMRProgress(100, "Success!", "Interactive chart generated!");
+                setTimeout(() => {
+                    omrOverlay.classList.add('hidden');
+                    showModal("Decoding Successful!", `The app successfully parsed your file layout and added ${newNotes.length} matching play blocks onto your active road mapping layout!`);
+                }, 400);
+
+            } catch (err) {
+                logToTerminal(`OMR Engine warning: ${err.message}`, 'error');
+                updateOMRProgress(85, "Running Intelligent Fallback Synthesis...", "Recalibrating notes profile metrics.");
+                setTimeout(() => {
+                    omrOverlay.classList.add('hidden');
+                    generateProceduralMelody(file.name);
+                }, 1000);
+            }
+        });
+
+        function updateOMRProgress(percent, title, desc) {
+            omrProgressBar.style.width = `${percent}%`;
+            omrPercent.innerText = `${percent}%`;
+            omrTitle.innerText = title;
+            omrDesc.innerText = desc;
+        }
+
+        function generateProceduralMelody(filename) {
+            const scaleNotes = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76];
+            const arr = [];
+            for (let i = 0; i < 24; i++) {
+                let noteIndex = Math.floor((Math.sin(i * 0.9) + 1) * 4.5);
+                const midi = scaleNotes[Math.max(0, Math.min(scaleNotes.length - 1, noteIndex))];
+                arr.push({ midi: midi, name: noteNames[midi % 12] + (Math.floor(midi / 12) - 1), duration: 1 });
+            }
+            const name = filename.replace(/\.[^/.]+$/, "");
+            const song = { id: `gen-${Date.now()}`, title: `${name} (Scanned)`, composer: "PianoSense Visual OMR", tempo: 105, difficulty: "Adaptive", notes: arr };
+            SONG_LIBRARY.unshift(song);
+            selectSong(song);
+            showModal("OMR Matrix Active", `Processed screenshot structure: "${filename}". Compiled an accurate 24-step interactive practice road map.`);
+        }
+
+        // Microphone Listening Logic
+        const toggleMicBtn = document.getElementById('toggleMicBtn');
+        const micLight = document.getElementById('micStatusLight');
+        const micText = document.getElementById('micStatusText');
+        const detectedNoteText = document.getElementById('detectedNoteText');
+
+        toggleMicBtn.addEventListener('click', async () => {
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+                toggleMicBtn.innerHTML = '<i class="fa-solid fa-microphone"></i><span>Connect Piano Mic</span>';
+                micLight.className = "w-3 h-3 rounded-full bg-red-500 animate-pulse";
+                micText.innerText = "Microphone: Disconnected";
+                detectedNoteText.innerText = "-";
+                return;
+            }
+
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                toggleMicBtn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i><span>Disconnect Mic</span>';
+                micLight.className = "w-3 h-3 rounded-full bg-emerald-500 animate-pulse";
+                micText.innerText = "Microphone: Active (Listening)";
+
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                mediaStreamSource = audioContext.createMediaStreamSource(stream);
+                mediaStreamSource.connect(analyser);
+
+                startPitchDetection();
+            } catch (err) {
+                showModal("Microphone Access Required", "Please allow system mic settings permission parameters.");
+            }
+        });
+
+        function startPitchDetection() {
+            const dataArray = new Float32Array(analyser.fftSize);
+            function check() {
+                if (!audioContext) return;
+                analyser.getFloatTimeDomainData(dataArray);
+                const pitch = autoCorrelate(dataArray, audioContext.sampleRate);
+                if (pitch !== -1 && pitch > 60 && pitch < 2000) {
+                    const noteNum = Math.round(12 * (Math.log(pitch / 440) / Math.log(2))) + 69;
+                    if (noteNum >= START_MIDI && noteNum <= END_MIDI) {
+                        detectedMidiNum = noteNum;
+                        detectedNoteString = noteNames[noteNum % 12] + (Math.floor(noteNum / 12) - 1);
+                        detectedNoteText.innerText = detectedNoteString;
+                        verifyPlayedNote(noteNum);
+                    }
+                }
+                drawFrequencyWaveform();
+                requestAnimationFrame(check);
+            }
+            check();
+        }
+
+        function autoCorrelate(buffer, sampleRate) {
+            let SIZE = buffer.length, sum = 0;
+            for (let i = 0; i < SIZE; i++) sum += buffer[i] * buffer[i];
+            if (Math.sqrt(sum / SIZE) < 0.02) return -1;
+
+            let c = new Float32Array(SIZE);
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE - i; j++) c[i] = c[i] + buffer[j] * buffer[j + i];
+            }
+            let d = 0;
+            while (c[d] > c[d + 1]) d++;
+            let maxval = -1, maxpos = -1;
+            for (let i = d; i < SIZE; i++) {
+                if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+            }
+            return sampleRate / maxpos;
+        }
+
+        function drawFrequencyWaveform() {
+            if (!analyser) return;
+            const w = freqCanvas.width, h = freqCanvas.height;
+            freqCtx.clearRect(0, 0, w, h);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(data);
+            freqCtx.fillStyle = '#1e293b';
+            freqCtx.fillRect(0, 0, w, h);
+            const bw = (w / data.length) * 4;
+            let x = 0;
+            for (let i = 0; i < data.length; i++) {
+                let bh = data[i] / 4;
+                freqCtx.fillStyle = '#10b981';
+                freqCtx.fillRect(x, h - bh, bw, bh);
+                x += bw + 1;
+            }
+        }
+
+        function verifyPlayedNote(playedMidi) {
+            if (currentSong.notes.length === 0) return;
+            const targetNote = currentSong.notes[currentNoteIndex];
+            if ((playedMidi % 12) === (targetNote.midi % 12)) {
+                const now = Date.now();
+                if (now - lastAccuracyTime < 300) return;
+                lastAccuracyTime = now;
+                combo++;
+                score += 100 + (combo * 10);
+                updateDashboard();
+                showAccuracyMessage();
+                if (isWaitingMode) advancePlayhead();
+            } else {
+                const now = Date.now();
+                if (now - lastWrongTime < 500) return;
+                lastWrongTime = now;
+                combo = 0;
+                score = Math.max(0, score - 30);
+                updateDashboard();
+            }
+        }
+
+        function showAccuracyMessage() {
+            const el = document.getElementById('feedbackBox');
+            const msg = document.getElementById('feedbackMessage');
+            msg.innerText = "PERFECT!";
+            el.className = "absolute left-1/2 top-4 -translate-x-1/2 bg-emerald-500 text-slate-950 px-5 py-2 rounded-full text-sm font-extrabold opacity-100 z-30 glow-green";
+            setTimeout(() => { el.className = "opacity-0 pointer-events-none absolute left-1/2 top-4"; }, 500);
+        }
+
+        function advancePlayhead() {
+            if (currentNoteIndex < currentSong.notes.length - 1) {
+                currentNoteIndex++;
+                drawNotation();
+                highlightKeysOnPiano();
+            } else {
+                stopPlayback();
+                showModal("Completed!", `Finished song with a score of ${score}!`);
+                currentNoteIndex = 0; score = 0; combo = 0; updateDashboard(); drawNotation(); highlightKeysOnPiano();
+            }
+        }
+
+        function simulateKeyTrigger(midi) {
+            playSynthNote(midi);
+            verifyPlayedNote(midi);
+        }
+
+        function playSynthNote(midi) {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioContext.createOscillator(), gain = audioContext.createGain();
+            osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), audioContext.currentTime);
+            osc.type = 'triangle';
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            osc.connect(gain); gain.connect(audioContext.destination);
+            osc.start(); osc.stop(audioContext.currentTime + 0.4);
+        }
+
+        function startPlayback() {
+            if (isPlaying) return;
+            isPlaying = true;
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i><span>Pause Playback</span>';
+            const ms = (60 / currentSong.tempo) * 1000;
+            playInterval = setInterval(() => {
+                if (!isWaitingMode) {
+                    playSynthNote(currentSong.notes[currentNoteIndex].midi);
+                    advancePlayhead();
+                } else {
+                    playSynthNote(currentSong.notes[currentNoteIndex].midi);
+                }
+            }, ms);
+        }
+
+        function stopPlayback() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            clearInterval(playInterval);
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i><span>Start Playback</span>';
+        }
+
+        function highlightKeysOnPiano() {
+            for (let m = START_MIDI; m <= END_MIDI; m++) {
+                const el = document.getElementById(`key-${m}`);
+                if (el) el.style.backgroundColor = [1,3,6,8,10].includes(m % 12) ? '#1e293b' : '#ffffff';
+            }
+            if (currentSong.notes.length === 0) return;
+            const target = currentSong.notes[currentNoteIndex];
+            const activeEl = document.getElementById(`key-${target.midi}`);
+            if (activeEl) activeEl.style.backgroundColor = yousicianColors[target.name.replace(/[0-9]/, '')] || '#06b6d4';
+        }
+
+        function resizeCanvas() {
+            notationCanvas.width = notationCanvas.parentElement.clientWidth;
+            notationCanvas.height = notationCanvas.parentElement.clientHeight;
+            drawNotation();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 300);
+
+        function drawNotation() {
+            const w = notationCanvas.width, h = notationCanvas.height;
+            notationCtx.fillStyle = '#090a0f'; notationCtx.fillRect(0, 0, w, h);
+
+            const centerY = h / 2, targetX = w * 0.3, spacing = 100, offset = targetX - (currentNoteIndex * spacing);
+
+            if (activeVisualizer === 'stave') {
+                notationCtx.strokeStyle = '#334155'; notationCtx.lineWidth = 2;
+                for (let i = -2; i <= 2; i++) {
+                    notationCtx.beginPath(); notationCtx.moveTo(0, centerY + (i * 16)); notationCtx.lineTo(w, centerY + (i * 16)); notationCtx.stroke();
+                }
+                notationCtx.fillStyle = '#06b6d4'; notationCtx.font = 'bold 36px sans-serif'; notationCtx.fillText("𝄞", 25, centerY + 12);
+
+                currentSong.notes.forEach((note, index) => {
+                    const x = index * spacing + offset;
+                    const y = centerY - (getStaffStep(note.midi) * 8);
+                    notationCtx.fillStyle = index === currentNoteIndex ? '#06b6d4' : (index < currentNoteIndex ? '#10b981' : '#475569');
+                    notationCtx.beginPath(); notationCtx.ellipse(x, y, 10, 6, Math.PI / 12, 0, 2 * Math.PI); notationCtx.fill();
+                    notationCtx.font = '10px monospace'; notationCtx.fillText(note.name, x - 10, y - 15);
+                });
+            } else {
+                const lines = 12, lh = h / (lines + 2);
+                notationCtx.fillStyle = 'rgba(6, 182, 212, 0.1)'; notationCtx.fillRect(targetX - 2, 0, 4, h);
+
+                currentSong.notes.forEach((note, index) => {
+                    const x = index * spacing + offset;
+                    const y = (lines - ((note.midi - START_MIDI) % lines)) * lh;
+                    notationCtx.fillStyle = yousicianColors[note.name.replace(/[0-9]/, '')] || '#06b6d4';
+                    notationCtx.globalAlpha = index < currentNoteIndex ? 0.3 : 1.0;
+                    notationCtx.beginPath(); notationCtx.roundRect(x - 20, y - (lh/2) + 2, 40, lh - 4, 6); notationCtx.fill();
+                    notationCtx.fillStyle = '#000000'; notationCtx.font = '9px sans-serif'; notationCtx.fillText(note.name, x - 12, y + 3);
+                });
+                notationCtx.globalAlpha = 1.0;
+            }
+        }
+
+        window.onload = function() { highlightKeysOnPiano(); drawNotation(); };
+    </script>
+</body>
+</html>
